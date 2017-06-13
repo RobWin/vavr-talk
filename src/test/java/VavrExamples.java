@@ -25,6 +25,7 @@ import io.github.resilience4j.circuitbreaker.event.CircuitBreakerEvent;
 import io.github.resilience4j.circuitbreaker.event.CircuitBreakerOnErrorEvent;
 import io.github.resilience4j.consumer.CircularEventConsumer;
 import io.github.resilience4j.metrics.CircuitBreakerMetrics;
+import io.github.resilience4j.metrics.Timer;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -365,6 +366,23 @@ public class VavrExamples {
         decorateCallable = Retry.decorateCallable(retry, decorateCallable);
         String result = Try.ofCallable(decorateCallable)
                 .getOrElse("Ich muss weg!");
+
+    }
+
+    public void timer(){
+        HelloWorldService service = null;
+
+        MetricRegistry metricRegistry = new MetricRegistry();
+        Timer timer = Timer.ofMetricRegistry("backend", metricRegistry);
+        Callable<String> decorateCallable = Timer
+                .decorateCallable(timer, () -> service.sayHelloWorld("Robert"));
+
+        Timer.Metrics metrics = timer.getMetrics();
+        long totalCalls = metrics.getNumberOfTotalCalls();
+        long successfulCalls = metrics.getNumberOfSuccessfulCalls();
+        long failedCalls = metrics.getNumberOfFailedCalls();
+        double meanRate = metrics.getMeanRate();
+        double responseTimePercentile = metrics.getSnapshot().get95thPercentile();
 
     }
 }
