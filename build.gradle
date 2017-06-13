@@ -16,8 +16,14 @@ dependencies {
     compile "io.github.resilience4j:resilience4j-bulkhead:0.10.0"
     compile "io.github.resilience4j:resilience4j-cache:0.10.0"
     compile "io.github.resilience4j:resilience4j-timelimiter:0.10.0"
+    compile "io.github.resilience4j:resilience4j-metrics:0.10.0"
+    compile "io.github.resilience4j:resilience4j-rxjava2:0.10.0"
+    compile "io.github.resilience4j:resilience4j-consumer:0.10.0"
+    testCompile "org.javamoney:moneta:1.1"
     testCompile "junit:junit:4.11"
     testCompile "org.assertj:assertj-core:3.0.0"
     testCompile "ch.qos.logback:logback-classic:0.9.26"
     testCompile "org.mockito:mockito-core:1.10.19"
+    testCompile "javax.ws.rs:javax.ws.rs-api:2.0"
+
 }
