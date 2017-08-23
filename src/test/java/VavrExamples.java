@@ -10,8 +10,12 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.money.MonetaryAmount;
+import javax.naming.InvalidNameException;
 import javax.ws.rs.WebApplicationException;
 
 import io.github.resilience4j.adapter.RxJava2Adapter;
@@ -33,6 +37,7 @@ import io.github.resilience4j.retry.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.vavr.API;
+import io.vavr.CheckedFunction0;
 import io.vavr.Function0;
 import io.vavr.Function1;
 import io.vavr.Function2;
@@ -45,6 +50,7 @@ import io.vavr.collection.Map;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
+import io.vavr.control.Validation;
 
 import static io.github.resilience4j.circuitbreaker.event.CircuitBreakerEvent.Type;
 import static io.vavr.API.$;
@@ -94,6 +100,38 @@ public class VavrExamples {
     }
 
     @Test
+    public void testExecuteAround(){
+        HelloWorldService service = null;
+
+        Function<Callable<String>, String> withRecovery = withRecovery(ex -> logException(ex), () -> "Hallo an alle JUGs");
+        String result = withRecovery.apply(() -> service.sayHelloWorld("JUG Darmstadt"));
+
+        CheckedFunction0<String> function = () -> service.sayHelloWorld("JUG Darmstadt");
+        Function0<String> recoveryFunction = function.recover(ex -> {
+            logException(ex);
+            return () -> "Hallo an alle JUGs";
+        });
+        String result2 = recoveryFunction.apply();
+    }
+
+    private <T> Function<Callable<T>, T> withRecovery(
+            Consumer<Exception> exceptionHandler,
+            Supplier<T> recoverFunction) {
+        return (Callable<T> callable) -> {
+            try {
+                return callable.call();
+            } catch (Exception ex) {
+                exceptionHandler.accept(ex);
+                return recoverFunction.get();
+            }
+        };
+    }
+
+    private void logException(Throwable e) {
+
+    }
+
+    @Test
     public void composition() {
         Function1<Integer, Integer> plusOne = a -> a + 1;
         Function1<Integer, Integer> multiplyByTwo = a -> a * 2;
@@ -138,9 +176,6 @@ public class VavrExamples {
     public Option<String> findOrange(List<String> fruits){
         return fruits.find(fruit -> fruit.equals("ORAGNE"));
     }
-
-
-
 
     public void  bla(){
         Function2<Integer, Integer, Integer> sum = (a, b) -> a + b;
@@ -384,5 +419,19 @@ public class VavrExamples {
         double meanRate = metrics.getMeanRate();
         double responseTimePercentile = metrics.getSnapshot().get95thPercentile();
 
+    }
+
+    private Either<Exception, List<User>> addUser(List<User> users, User user) {
+        Validation<Exception, User> validation = validateUser(user);
+        return validation
+                .map(users::prepend)
+                .toEither();
+    }
+
+    private Validation<Exception, User> validateUser(User user) {
+        if(user.getName().equals("Hack0r")){
+            return Validation.invalid(new InvalidNameException());
+        }
+        return Validation.valid(user);
     }
 }

@@ -62,4 +62,13 @@ public class TestClass {
                 .collect(Collectors.toList());
     }
 
+    List<User> users = new ArrayList<>();
+    public void addUser(User user){
+        validateUser(user);
+        users.add(user);
+    }
+
+    private void validateUser(User user) {
+
+    }
 }
