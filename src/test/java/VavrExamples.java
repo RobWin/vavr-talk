@@ -18,6 +18,7 @@ import javax.money.MonetaryAmount;
 import javax.naming.InvalidNameException;
 import javax.ws.rs.WebApplicationException;
 
+import demo.User;
 import io.github.resilience4j.adapter.RxJava2Adapter;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
@@ -238,10 +239,11 @@ public class VavrExamples {
                 .map(value -> value + " und allen Anwesenden")
                 .recover(BusinessException.class, throwable -> "Ich muss weg!")
                 .onFailure(throwable -> LOG.warn("Handled exception", throwable))
-                .getOrElse("Ich muss auch weg");
+                .getOrElse(() -> "Ich muss auch weg");
     }
 
-    public void eitherExample(){
+    @Test
+    public void eitherRightExample(){
         Either<Exception, String> either = Either.right("Hello world");
 
         // = "HELLO WORLD"
@@ -259,6 +261,7 @@ public class VavrExamples {
                 .peek(value -> LOG.debug("Value: {}", value))
                 .getOrElse(() -> "Ich muss weg!");
     }
+
 
     public void lazyExample(){
         Lazy<Double> lazy = Lazy.of(Math::random);
@@ -421,6 +424,15 @@ public class VavrExamples {
 
     }
 
+    @Test
+    public void matchUser(){
+        User user = new User("Hack0r", "User01");
+        Validation<Exception, String> result = Match(user).of(
+                Case($User($("Hack0r"), $()), (name, id)
+                        -> Validation.invalid(new InvalidNameException())),
+                Case($(), () -> Validation.valid(user.getId())));
+    }
+
     private Either<Exception, List<User>> addUser(List<User> users, User user) {
         Validation<Exception, User> validation = validateUser(user);
         return validation
@@ -429,8 +441,8 @@ public class VavrExamples {
     }
 
     private Validation<Exception, User> validateUser(User user) {
-        if(user.getName().equals("Hack0r")){
-            return Validation.invalid(new InvalidNameException());
+        if(user != null && user.getName().equals("Hack0r")){
+            return Validation.invalid(new InvalidNameException(user.getId()));
         }
         return Validation.valid(user);
     }

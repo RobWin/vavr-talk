@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import demo.User;
 import io.vavr.Function1;
 
 import static java.util.stream.Collectors.toList;
