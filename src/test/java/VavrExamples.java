@@ -11,8 +11,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import javax.money.MonetaryAmount;
 import javax.naming.InvalidNameException;
@@ -38,7 +36,7 @@ import io.github.resilience4j.retry.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.vavr.API;
-import io.vavr.CheckedFunction0;
+import io.vavr.CheckedFunction1;
 import io.vavr.Function0;
 import io.vavr.Function1;
 import io.vavr.Function2;
@@ -63,6 +61,7 @@ import static io.vavr.Predicates.is;
 import static io.vavr.Predicates.isIn;
 import static io.vavr.Predicates.noneOf;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.BDDAssertions.then;
 
 public class VavrExamples {
@@ -104,26 +103,31 @@ public class VavrExamples {
     public void testExecuteAround(){
         HelloWorldService service = null;
 
-        Function<Callable<String>, String> withRecovery = withRecovery(ex -> logException(ex), () -> "Hallo an alle JUGs");
-        String result = withRecovery.apply(() -> service.sayHelloWorld("JUG Darmstadt"));
+        Function1<String, String> supplier = withRecovery(
+                (input) -> service.sayHelloWorld(input),
+                ex -> logException(ex),
+                (input) -> "Hallo an " + input);
+        String result = supplier.apply("JUG Darmstadt");
 
-        CheckedFunction0<String> function = () -> service.sayHelloWorld("JUG Darmstadt");
-        Function0<String> recoveryFunction = function.recover(ex -> {
+        CheckedFunction1<String, String> function = (String input) -> service.sayHelloWorld(input);
+
+        Function1<String, String> recoveryFunction = function.recover(ex -> {
             logException(ex);
-            return () -> "Hallo an alle JUGs";
+            return (input) -> "Hallo an " + input;
         });
-        String result2 = recoveryFunction.apply();
+        String result2 = recoveryFunction.apply("JUG Darmstadt");
     }
 
-    private <T> Function<Callable<T>, T> withRecovery(
-            Consumer<Exception> exceptionHandler,
-            Supplier<T> recoverFunction) {
-        return (Callable<T> callable) -> {
+    private <T, R> Function1<T, R> withRecovery(
+            CheckedFunction1<T, R> function,
+            Consumer<Throwable> exceptionHandler,
+            Function1<T, R> recoverFunction) {
+        return (T t) -> {
             try {
-                return callable.call();
-            } catch (Exception ex) {
+                return function.apply(t);
+            } catch (Throwable ex) {
                 exceptionHandler.accept(ex);
-                return recoverFunction.get();
+                return recoverFunction.apply(t);
             }
         };
     }
@@ -260,6 +264,29 @@ public class VavrExamples {
                 .map(value -> value + " world")
                 .peek(value -> LOG.debug("Value: {}", value))
                 .getOrElse(() -> "Ich muss weg!");
+    }
+
+    @Test
+    public void tryDivide(){
+        int result = divide(8,2).get();
+
+        assertThat(result).isEqualTo(7);
+    }
+
+    @Test
+    public void tryDivideFailure(){
+        int result = divide(8,0).get();
+
+        assertThat(result).isEqualTo(8);
+    }
+
+
+
+
+    public Try<Integer> divide(int dividend, int divisor) {
+        return Try.of(() -> dividend / divisor)
+            .map(quotient -> quotient + 3)
+            .recoverWith(ex -> Try.success(dividend));
     }
 
 
@@ -427,10 +454,12 @@ public class VavrExamples {
     @Test
     public void matchUser(){
         User user = new User("Hack0r", "User01");
+        /*
         Validation<Exception, String> result = Match(user).of(
                 Case($User($("Hack0r"), $()), (name, id)
                         -> Validation.invalid(new InvalidNameException())),
                 Case($(), () -> Validation.valid(user.getId())));
+                */
     }
 
     private Either<Exception, List<User>> addUser(List<User> users, User user) {
